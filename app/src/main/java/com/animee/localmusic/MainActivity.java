@@ -2,6 +2,8 @@ package com.animee.localmusic;
 
 import android.content.ContentResolver;
 import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.provider.MediaStore;
@@ -9,6 +11,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -21,7 +24,7 @@ import java.util.Date;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener{
-    ImageView nextIv,playIv,lastIv;
+    ImageView nextIv,playIv,lastIv,albumIv;
     TextView singerTv,songTv;
     RecyclerView musicRv;
 //    数据源
@@ -75,7 +78,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 //                设置新的播放路径
         try {
             mediaPlayer.setDataSource(musicBean.getPath());
+            String albumArt = musicBean.getAlbumArt();
+            Log.i("lsh123", "playMusicInMusicBean: albumpath=="+albumArt);
+            Bitmap bm = BitmapFactory.decodeFile(albumArt);
+            Log.i("lsh123", "playMusicInMusicBean: bm=="+bm);
+            albumIv.setImageBitmap(bm);
             playMusic();
+
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -94,6 +103,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 try {
                     mediaPlayer.prepare();
                     mediaPlayer.start();
+
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -151,19 +161,39 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             long duration = cursor.getLong(cursor.getColumnIndex(MediaStore.Audio.Media.DURATION));
             SimpleDateFormat sdf = new SimpleDateFormat("mm:ss");
             String time = sdf.format(new Date(duration));
+//          获取专辑图片主要是通过album_id进行查询
+            String album_id = cursor.getString(cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM_ID));
+            String albumArt = getAlbumArt(album_id);
 //            将一行当中的数据封装到对象当中
-            LocalMusicBean bean = new LocalMusicBean(sid, song, singer, album, time, path);
+            LocalMusicBean bean = new LocalMusicBean(sid, song, singer, album, time, path,albumArt);
             mDatas.add(bean);
         }
 //        数据源变化，提示适配器更新
         adapter.notifyDataSetChanged();
     }
 
+
+    private String getAlbumArt(String album_id) {
+        String mUriAlbums = "content://media/external/audio/albums";
+        String[] projection = new String[]{"album_art"};
+        Cursor cur = this.getContentResolver().query(
+                Uri.parse(mUriAlbums + "/" + album_id),
+                projection, null, null, null);
+        String album_art = null;
+        if (cur.getCount() > 0 && cur.getColumnCount() > 0) {
+            cur.moveToNext();
+            album_art = cur.getString(0);
+        }
+        cur.close();
+        cur = null;
+        return album_art;
+    }
     private void initView() {
         /* 初始化控件的函数*/
         nextIv = findViewById(R.id.local_music_bottom_iv_next);
         playIv = findViewById(R.id.local_music_bottom_iv_play);
         lastIv = findViewById(R.id.local_music_bottom_iv_last);
+        albumIv = findViewById(R.id.local_music_bottom_iv_icon);
         singerTv = findViewById(R.id.local_music_bottom_tv_singer);
         songTv = findViewById(R.id.local_music_bottom_tv_song);
         musicRv = findViewById(R.id.local_music_rv);
